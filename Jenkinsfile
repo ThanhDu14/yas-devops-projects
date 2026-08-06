@@ -7,22 +7,17 @@
       }
 
       stages {
-          stage('checkout'){
-            steps{
-                checkout scm
-            }
-          }
-          stage('Detect Changed services'){
-            steps{
-                script {
-                    env.CHANGED_SERVICES = sh(
-                        scripts: '.jenkins/scripts/detect-changed-service.sh',
-                        returnStdout: true
-                    ).trim()
-                    echo "Services need runs: ${env.CHANGED_SERVICES}"
-                }
-            }
+          stage('Detect Changed Services') {
+              steps {
+                  script {
+                      env.CHANGED_SERVICES = sh(
+                          script: '.jenkins/scripts/detect-changed-services.sh',
+                          returnStdout: true
+                      ).trim()
+
+                      echo "Services need runs: ${env.CHANGED_SERVICES}"
+                  }
+              }
           }
       }
   }
-	 

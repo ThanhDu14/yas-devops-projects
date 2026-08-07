@@ -26,15 +26,13 @@ echo "======================================"
 
 if [ "${RUN_INTEGRATION_TESTS}" = "true" ]; then
     echo "Running Unit + Integration Tests (mvn clean verify) for: ${SERVICE_LIST}"
-    mvn clean verify -B -pl "${SERVICE_LIST}" -am -T 1C \
+    mvn clean verify -B -pl "${SERVICE_LIST}" -am \
         -Delasticsearch.url=host.docker.internal \
-        -Dspring.elasticsearch.uris=http://host.docker.internal:9200 \
         -Delasticsearch.version=8.11.3
 else
     echo "Running Unit Tests only (mvn clean test -DskipITs) for: ${SERVICE_LIST}"
-    mvn clean test -B -pl "${SERVICE_LIST}" -am -T 1C -DskipITs \
+    mvn clean test -B -pl "${SERVICE_LIST}" -am -DskipITs \
         -Delasticsearch.url=host.docker.internal \
-        -Dspring.elasticsearch.uris=http://host.docker.internal:9200 \
         -Delasticsearch.version=8.11.3
 fi
 

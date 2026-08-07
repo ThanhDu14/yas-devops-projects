@@ -3,6 +3,7 @@ pipeline {
 
     parameters {
         string(name: 'TARGET_SERVICES', defaultValue: '', description: 'Manually specify services to test/build (space-separated, e.g. "media product"). Leave empty for auto-detect.')
+        booleanParam(name: 'RUN_INTEGRATION_TESTS', defaultValue: true, description: 'Run full Integration Tests (mvn verify with Testcontainers)')
         booleanParam(name: 'RUN_SECURITY_SCAN', defaultValue: true, description: 'Run Gitleaks secret scan stage')
     }
 
@@ -51,7 +52,7 @@ pipeline {
                 expression { return env.CHANGED_SERVICES?.trim() }
             }
             steps {
-                sh '.jenkins/scripts/test-changed-services.sh "${CHANGED_SERVICES}"'
+                sh '.jenkins/scripts/test-changed-services.sh "${CHANGED_SERVICES}" "${params.RUN_INTEGRATION_TESTS}"'
             }
             post {
                 always {

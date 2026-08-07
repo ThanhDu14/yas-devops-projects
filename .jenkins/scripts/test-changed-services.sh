@@ -2,6 +2,7 @@
 set -euo pipefail
 
 CHANGED_SERVICES="${1:-}"
+RUN_INTEGRATION_TESTS="${2:-false}"
 
 if [ -z "${CHANGED_SERVICES}" ]; then
     echo "No changed service to test."
@@ -11,9 +12,12 @@ fi
 # Chuyển danh sách service từ dạng "service1 service2" sang "service1,service2"
 SERVICE_LIST=$(echo "${CHANGED_SERVICES}" | tr ' ' ',')
 
-echo "Running tests in parallel for: ${SERVICE_LIST}"
+if [ "${RUN_INTEGRATION_TESTS}" = "true" ]; then
+    echo "Running Unit + Integration Tests (mvn verify) in parallel for: ${SERVICE_LIST}"
+    mvn -B -pl "${SERVICE_LIST}" -am verify -T 1C
+else
+    echo "Running Unit Tests (mvn test) in parallel for: ${SERVICE_LIST}"
+    mvn -B -pl "${SERVICE_LIST}" -am test -T 1C -DskipITs
+fi
 
-# -T 1C: Tự động chạy song song 1 thread per CPU Core
-# test -DskipITs: Chỉ chạy Unit Test (siêu nhanh), không bật Testcontainers nặng nề
-mvn -B -pl "${SERVICE_LIST}" -am test -T 1C -DskipITs
 

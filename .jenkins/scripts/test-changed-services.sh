@@ -14,5 +14,6 @@ SERVICE_LIST=$(echo "${CHANGED_SERVICES}" | tr ' ' ',')
 echo "Running tests in parallel for: ${SERVICE_LIST}"
 
 # -T 1C: Tự động chạy song song 1 thread per CPU Core
-# test: Chỉ chạy Unit Test (siêu nhanh), không bật Testcontainers nặng nề
-mvn -B -pl "${SERVICE_LIST}" -am test -T 1C
+# test -DskipITs: Chỉ chạy Unit Test (siêu nhanh), không bật Testcontainers nặng nề
+mvn -B -pl "${SERVICE_LIST}" -am test -T 1C -DskipITs
+

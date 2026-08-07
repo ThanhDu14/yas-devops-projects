@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ -n "${TARGET_SERVICES:-}" ]; then
+    echo "${TARGET_SERVICES}"
+    exit 0
+fi
+
 SERVICES=(
     common-library backoffice-bff cart customer delivery inventory location 
     media order payment payment-paypal product promotion

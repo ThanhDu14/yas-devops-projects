@@ -40,7 +40,8 @@ pipeline {
                         if command -v gitleaks > /dev/null 2>&1; then
                             gitleaks detect --source . -v
                         else
-                            echo "Gitleaks CLI not found on Jenkins agent. Skipping Gitleaks scan."
+                            echo "Gitleaks CLI not found in PATH. Running Gitleaks via Docker container..."
+                            docker run --rm -v "$(pwd):/path" zricethezav/gitleaks:latest detect --source="/path" -v
                         fi
                     '''
                 }

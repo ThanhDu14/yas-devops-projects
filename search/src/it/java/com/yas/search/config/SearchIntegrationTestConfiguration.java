@@ -39,6 +39,11 @@ public class SearchIntegrationTestConfiguration {
     }
 
     @Bean
+    public ElasticTestContainer elasticTestContainer() {
+        return new ElasticTestContainer(elasticSearchVersion);
+    }
+
+    @Bean
     public DynamicPropertyRegistrar elasticProperties(ElasticTestContainer elasticTestContainer) {
         return registry -> {
             registry.add("elasticsearch.url", elasticTestContainer::getHttpHostAddress);

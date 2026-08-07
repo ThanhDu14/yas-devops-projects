@@ -52,7 +52,10 @@ pipeline {
                 expression { return env.CHANGED_SERVICES?.trim() }
             }
             steps {
-                sh '.jenkins/scripts/test-changed-services.sh "${CHANGED_SERVICES}" "${params.RUN_INTEGRATION_TESTS}"'
+                script {
+                    def runIt = params.RUN_INTEGRATION_TESTS != null ? params.RUN_INTEGRATION_TESTS.toString() : "true"
+                    sh ".jenkins/scripts/test-changed-services.sh \"${env.CHANGED_SERVICES}\" \"${runIt}\""
+                }
             }
             post {
                 always {

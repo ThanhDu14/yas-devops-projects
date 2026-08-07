@@ -44,6 +44,14 @@ public class SearchIntegrationTestConfiguration {
         return new ElasticTestContainer(elasticSearchVersion);
     }
 
+    @Bean
+    public DynamicPropertyRegistrar elasticProperties(ElasticTestContainer elasticTestContainer) {
+        return registry -> {
+            registry.add("elasticsearch.url", elasticTestContainer::getHost);
+            registry.add("spring.elasticsearch.uris", elasticTestContainer::getHttpHostAddress);
+        };
+    }
+
     @Bean(destroyMethod = "stop")
     public KeycloakContainer keycloakContainer() {
         return new KeycloakContainer()

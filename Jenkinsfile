@@ -19,5 +19,21 @@
                   }
               }
           }
+        stage('Test changed Services'){
+                when{
+                    expression{
+                        return env.CHANGED_SERVICES?.trim()
+                    }
+                }
+                steps{
+                    sh '.jenkins/scripts/test-changed-services.sh $"{CHANGED_SERVICES}"'
+                }
+                post{
+                    always{
+                        junit allowEmptyResults: true , testResults: '**/target/surefire-reports/*.xml,**/target/failsafe-reports/*.xml'
+                        archiveArtifacts allowEmptyArchive: true, artifacts: '**/target/site/jacoco/**/*'
+                    }
+                }
+        }
       }
   }

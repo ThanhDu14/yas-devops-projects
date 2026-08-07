@@ -25,14 +25,14 @@ docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}" || tr
 echo "======================================"
 
 if [ "${RUN_INTEGRATION_TESTS}" = "true" ]; then
-    echo "Running Unit + Integration Tests (mvn verify) in parallel for: ${SERVICE_LIST}"
-    mvn -B -pl "${SERVICE_LIST}" -am verify -T 1C \
+    echo "Running Unit + Integration Tests (mvn clean verify) for: ${SERVICE_LIST}"
+    mvn clean verify -B -pl "${SERVICE_LIST}" -am -T 1C \
         -Delasticsearch.url=host.docker.internal \
         -Dspring.elasticsearch.uris=http://host.docker.internal:9200 \
         -Delasticsearch.version=8.11.3
 else
-    echo "Running Unit Tests (mvn test) in parallel for: ${SERVICE_LIST}"
-    mvn -B -pl "${SERVICE_LIST}" -am test -T 1C -DskipITs \
+    echo "Running Unit Tests only (mvn clean test -DskipITs) for: ${SERVICE_LIST}"
+    mvn clean test -B -pl "${SERVICE_LIST}" -am -T 1C -DskipITs \
         -Delasticsearch.url=host.docker.internal \
         -Dspring.elasticsearch.uris=http://host.docker.internal:9200 \
         -Delasticsearch.version=8.11.3

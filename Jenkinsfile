@@ -26,7 +26,7 @@
                     }
                 }
                 steps{
-                    sh '.jenkins/scripts/test-changed-services.sh $"{CHANGED_SERVICES}"'
+                    sh '.jenkins/scripts/test-changed-services.sh "${CHANGED_SERVICES}"'
                 }
                 post{
                     always{

@@ -12,6 +12,11 @@ pipeline {
         maven 'maven-3'
     }
 
+    environment {
+        TESTCONTAINERS_RYUK_DISABLED = 'true'
+        TESTCONTAINERS_HOST_OVERRIDE = 'host.docker.internal'
+    }
+
     stages {
         stage('Detect Changed Services') {
             steps {

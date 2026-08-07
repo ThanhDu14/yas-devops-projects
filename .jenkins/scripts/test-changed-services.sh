@@ -28,11 +28,13 @@ if [ "${RUN_INTEGRATION_TESTS}" = "true" ]; then
     echo "Running Unit + Integration Tests (mvn verify) in parallel for: ${SERVICE_LIST}"
     mvn -B -pl "${SERVICE_LIST}" -am verify -T 1C \
         -Delasticsearch.url=host.docker.internal \
+        -Dspring.elasticsearch.uris=http://host.docker.internal:9200 \
         -Delasticsearch.version=8.11.3
 else
     echo "Running Unit Tests (mvn test) in parallel for: ${SERVICE_LIST}"
     mvn -B -pl "${SERVICE_LIST}" -am test -T 1C -DskipITs \
         -Delasticsearch.url=host.docker.internal \
+        -Dspring.elasticsearch.uris=http://host.docker.internal:9200 \
         -Delasticsearch.version=8.11.3
 fi
 

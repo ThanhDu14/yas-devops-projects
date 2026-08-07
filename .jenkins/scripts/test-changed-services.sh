@@ -12,8 +12,16 @@ fi
 # Chuyển danh sách service từ dạng "service1 service2" sang "service1,service2"
 SERVICE_LIST=$(echo "${CHANGED_SERVICES}" | tr ' ' ',')
 
+echo "=== Cleaning up stale test containers ==="
+docker rm -f $(docker ps -aq --filter "ancestor=docker.elastic.co/elasticsearch/elasticsearch:8.11.3") 2>/dev/null || true
+docker rm -f $(docker ps -aq --filter "ancestor=docker.elastic.co/elasticsearch/elasticsearch:9.2.3") 2>/dev/null || true
+docker rm -f $(docker ps -aq --filter "publish=9200") 2>/dev/null || true
+echo "=== Done cleanup ==="
+
 echo "=== Checking Docker Images on Host ==="
 docker images | grep -E "elasticsearch|kafka|keycloak" || true
+echo "=== Checking running containers ==="
+docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}" || true
 echo "======================================"
 
 if [ "${RUN_INTEGRATION_TESTS}" = "true" ]; then

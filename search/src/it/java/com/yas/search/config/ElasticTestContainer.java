@@ -17,5 +17,6 @@ public class ElasticTestContainer extends ElasticsearchContainer {
         this.withEnv("xpack.security.enabled", "false");
         this.withEnv("xpack.security.transport.ssl.enabled", "false");
         this.withEnv("xpack.security.http.ssl.enabled", "false");
+        this.withEnv("ES_JAVA_OPTS", "-Xms256m -Xmx512m");
     }
 }

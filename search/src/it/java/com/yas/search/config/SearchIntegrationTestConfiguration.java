@@ -46,8 +46,11 @@ public class SearchIntegrationTestConfiguration {
     @Bean
     public DynamicPropertyRegistrar elasticProperties(ElasticTestContainer elasticTestContainer) {
         return registry -> {
+            String esUri = "http://" + elasticTestContainer.getHttpHostAddress();
             registry.add("elasticsearch.url", elasticTestContainer::getHttpHostAddress);
-            registry.add("spring.elasticsearch.uris", () -> "http://" + elasticTestContainer.getHttpHostAddress());
+            registry.add("spring.elasticsearch.uris", () -> esUri);
+            registry.add("spring.elasticsearch.rest.uris", () -> esUri);
+            registry.add("spring.data.elasticsearch.client.reactive.endpoints", elasticTestContainer::getHttpHostAddress);
         };
     }
 

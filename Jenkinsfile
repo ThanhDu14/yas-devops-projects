@@ -79,7 +79,7 @@ pipeline {
             }
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    sh 'mvn -B -pl "${CHANGED_SERVICES}" -am org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.token=$SONAR_TOKEN'
+                    sh 'mvn -B -pl "${CHANGED_SERVICES}" -am org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.token=$SONAR_TOKEN -Dsonar.organization=thanhdu14 -Dsonar.projectKey=ThanhDu14_yas-devops-projects'
                 }
             }
         }

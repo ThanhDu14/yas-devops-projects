@@ -50,7 +50,6 @@ if [ "${RUN_INTEGRATION_TESTS}" = "true" ]; then
     mvn clean verify -B \
         -pl "${SERVICE_LIST}" \
         -am \
-        -Delasticsearch.url=host.docker.internal \
         -Delasticsearch.version=9.2.3
 
 else
@@ -61,7 +60,6 @@ else
         -pl "${SERVICE_LIST}" \
         -am \
         -DskipITs \
-        -Delasticsearch.url=host.docker.internal \
         -Delasticsearch.version=9.2.3
 
 fi

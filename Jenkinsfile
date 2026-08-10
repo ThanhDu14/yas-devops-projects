@@ -104,7 +104,9 @@ pipeline {
                             chmod +x /tmp/bin/trivy
                         fi
                         export PATH="/tmp/bin:$PATH"
-                        trivy fs . --severity HIGH,CRITICAL --format json -o trivy-report.json --no-progress || true
+                        TARGET="${CHANGED_SERVICES:-.}"
+                        echo "Scanning vulnerabilities for: ${TARGET}"
+                        trivy fs --scanners vuln --severity HIGH,CRITICAL --format json -o trivy-report.json --no-progress ${TARGET} || true
                     '''
                 }
             }

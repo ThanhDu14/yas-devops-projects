@@ -54,9 +54,9 @@ if [ "${RUN_INTEGRATION_TESTS}" = "true" ]; then
 
 else
 
-    echo "Running Unit Tests only (mvn clean test -DskipITs) for: ${SERVICE_LIST}"
+    echo "Running Unit Tests only (mvn clean test jacoco:report -DskipITs) for: ${SERVICE_LIST}"
 
-    mvn clean test -B \
+    mvn clean test jacoco:report -B \
         -pl "${SERVICE_LIST}" \
         -am \
         -DskipITs \

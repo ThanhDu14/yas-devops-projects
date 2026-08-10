@@ -18,6 +18,16 @@ pipeline {
     }
 
     stages {
+        stage('Clean Old Artifacts') {
+            steps {
+                sh '''
+                    echo "Cleaning old target directories and reports..."
+                    find . -type d -name "target" -prune -exec rm -rf {} + 2>/dev/null || true
+                    rm -f gitleaks-report.json trivy-report.json BAO_CAO_CI.md 2>/dev/null || true
+                '''
+            }
+        }
+
         stage('Detect Changed Services') {
             steps {
                 script {

@@ -46,7 +46,7 @@ pipeline {
                             gitleaks detect --source . -v
                         else
                             echo "Gitleaks CLI not found in PATH. Running Gitleaks via Docker container..."
-                            docker run --rm -v "$(pwd):/path" zricethezav/gitleaks:latest detect --source="/path" -v
+                            docker run --rm -v "$(pwd):/path" zricethezav/gitleaks:latest detect --source="/path" --no-git -v
                         fi
                     '''
                 }
@@ -79,7 +79,7 @@ pipeline {
             }
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    sh 'mvn -B -pl "${CHANGED_SERVICES}" org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.token=$SONAR_TOKEN'
+                    sh 'mvn -B -pl "${CHANGED_SERVICES}" -am org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.token=$SONAR_TOKEN'
                 }
             }
         }

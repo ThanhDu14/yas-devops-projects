@@ -48,7 +48,7 @@ pipeline {
                             curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar -xz -C /tmp/bin
                             export PATH="/tmp/bin:$PATH"
                         fi
-                        gitleaks detect --source . -v || true
+                        gitleaks detect --source . -v --report-path gitleaks-report.json --report-format json || true
                     '''
                 }
             }
@@ -93,7 +93,7 @@ pipeline {
                             curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /tmp/bin
                             export PATH="/tmp/bin:$PATH"
                         fi
-                        trivy fs . --severity HIGH,CRITICAL --no-progress || true
+                        trivy fs . --severity HIGH,CRITICAL --format json -o trivy-report.json --no-progress || true
                     '''
                 }
             }
@@ -105,6 +105,23 @@ pipeline {
             }
             steps {
                 sh '.jenkins/scripts/build-changed-services.sh "${CHANGED_SERVICES}"'
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                sh '''
+                    if command -v python3 > /dev/null 2>&1; then
+                        python3 .jenkins/scripts/generate-report.py
+                    elif command -v python > /dev/null 2>&1; then
+                        python .jenkins/scripts/generate-report.py
+                    else
+                        echo "Python not found to generate markdown report."
+                    fi
+                '''
+                archiveArtifacts allowEmptyArchive: true, artifacts: 'BAO_CAO_CI.md, gitleaks-report.json, trivy-report.json'
             }
         }
     }

@@ -99,7 +99,7 @@ pipeline {
                         if ! command -v trivy > /dev/null 2>&1 && [ ! -f /tmp/bin/trivy ]; then
                             echo "Downloading Trivy binary..."
                             mkdir -p /tmp/bin
-                            curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.59.1/trivy_0.59.1_Linux-64bit.tar.gz | tar -xz -C /tmp/bin trivy
+                            curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.73.0/trivy_0.73.0_Linux-64bit.tar.gz | tar -xz -C /tmp/bin trivy
                             chmod +x /tmp/bin/trivy
                         fi
                         export PATH="/tmp/bin:$PATH"

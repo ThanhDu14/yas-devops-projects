@@ -15,18 +15,10 @@ fi
 SERVICE_LIST=$(echo "${CHANGED_SERVICES}" | tr ' ' ',')
 
 
-echo "=== Cleaning up stale Elasticsearch test containers ==="
-
-docker rm -f $(
-    docker ps -aq \
-        --filter "ancestor=docker.elastic.co/elasticsearch/elasticsearch:8.11.3"
-) 2>/dev/null || true
-
-docker rm -f $(
-    docker ps -aq \
-        --filter "ancestor=docker.elastic.co/elasticsearch/elasticsearch:9.2.3"
-) 2>/dev/null || true
-
+echo "=== Cleaning up stale test containers ==="
+docker rm -f $(docker ps -aq --filter "label=org.testcontainers=true") 2>/dev/null || true
+docker rm -f $(docker ps -aq --filter "ancestor=docker.elastic.co/elasticsearch/elasticsearch:9.2.3") 2>/dev/null || true
+docker rm -f $(docker ps -aq --filter "ancestor=quay.io/keycloak/keycloak:26.0") 2>/dev/null || true
 echo "=== Done cleanup ==="
 
 echo "=== Checking Docker Images on Host ==="
@@ -34,7 +26,6 @@ docker images | grep -E "elasticsearch|kafka|keycloak" || true
 
 echo "=== Checking Running Containers ==="
 docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}" || true
-
 echo "======================================"
 
 if [ "${RUN_INTEGRATION_TESTS}" = "true" ]; then

@@ -145,11 +145,11 @@ pipeline {
             steps {
                 withCredentials([
                     string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT_ID'),
-                    string(credentialsId: 'gar-repo', variable: 'GAR_REPO'),
                     string(credentialsId: 'gcp-region', variable: 'GCP_REGION'),
                     file(credentialsId: 'gcp-service-account-key', variable: 'GCP_SA_KEY')
                 ]) {
                     sh '''
+                        export GAR_REPO="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/yas-docker-repo"
                         echo "🔐 Xác thực với Google Cloud..."
                         gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
                         gcloud config set project "$GCP_PROJECT_ID"
@@ -160,7 +160,6 @@ pipeline {
                 }
             }
         }
-
 
         stage('Deploy Backend to VM (MIG)') {
             when {
@@ -176,11 +175,12 @@ pipeline {
                     file(credentialsId: 'gcp-service-account-key', variable: 'GCP_SA_KEY')
                 ]) {
                     sh '''
-                        echo "Xac thuc voi Google Cloud..."
+                        export GAR_REPO="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/yas-docker-repo"
+                        echo "🔐 Xác thực với Google Cloud..."
                         gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
                         gcloud config set project "$GCP_PROJECT_ID"
 
-                        echo "Deploy Backend len VM trong MIG..."
+                        echo "🚀 Deploy Backend lên VM trong MIG..."
                         .jenkins/scripts/deploy-backend.sh
                     '''
                 }

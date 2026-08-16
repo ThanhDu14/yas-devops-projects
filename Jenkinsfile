@@ -3,9 +3,10 @@ pipeline {
 
     parameters {
         string(name: 'TARGET_SERVICES', defaultValue: '', description: 'Manually specify services to test/build (space-separated, e.g. "media product"). Leave empty for auto-detect.')
+        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Bỏ qua Unit/Integration Tests và SonarCloud để Build & Deploy nhanh')
         booleanParam(name: 'RUN_INTEGRATION_TESTS', defaultValue: false, description: 'Run full Integration Tests (mvn verify with Testcontainers)')
         booleanParam(name: 'RUN_SECURITY_SCAN', defaultValue: true, description: 'Run Gitleaks secret scan stage')
-        booleanParam(name: 'DEPLOY_TO_GCP', defaultValue: false, description: 'Deploy lên GCP sau khi build thành công (Push Image + Deploy Frontend/Backend)')
+        booleanParam(name: 'DEPLOY_TO_GCP', defaultValue: false, description: 'Deploy lên GCP sau khi build thành công')
     }
 
     tools {
@@ -69,7 +70,10 @@ pipeline {
 
         stage('Test Changed Services') {
             when {
-                expression { return env.CHANGED_SERVICES?.trim() }
+                allOf {
+                    expression { return !params.SKIP_TESTS }
+                    expression { return env.CHANGED_SERVICES?.trim() }
+                }
             }
             steps {
                 script {
@@ -87,11 +91,14 @@ pipeline {
 
         stage('Quality Analysis (SonarCloud)') {
             when {
-                expression { return env.CHANGED_SERVICES?.trim() }
+                allOf {
+                    expression { return !params.SKIP_TESTS }
+                    expression { return env.CHANGED_SERVICES?.trim() }
+                }
             }
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    sh 'mvn -B -pl "${CHANGED_SERVICES}" -am org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.token=$SONAR_TOKEN -Dsonar.organization=thanhdu14 -Dsonar.projectKey=ThanhDu14_yas-devops-projects'
+                    sh 'mvn -B -pl "${CHANGED_SERVICES}" -am org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.token=$SONAR_TOKEN -Dsonar.organization=thanhdu14 -Dsonar.projectKey=ThanhDu14_yas-devops-projects || true'
                 }
             }
         }

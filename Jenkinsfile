@@ -149,6 +149,12 @@ pipeline {
                     file(credentialsId: 'gcp-service-account-key', variable: 'GCP_SA_KEY')
                 ]) {
                     sh '''
+                        if ! command -v gcloud > /dev/null 2>&1 && [ ! -f /tmp/google-cloud-sdk/bin/gcloud ]; then
+                            echo "⬇️ Đang tải Google Cloud SDK..."
+                            curl -sSL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz | tar -xz -C /tmp
+                        fi
+                        export PATH="/tmp/google-cloud-sdk/bin:$PATH"
+
                         export GAR_REPO="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/yas-docker-repo"
                         echo "🔐 Xác thực với Google Cloud..."
                         gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
@@ -175,6 +181,7 @@ pipeline {
                     file(credentialsId: 'gcp-service-account-key', variable: 'GCP_SA_KEY')
                 ]) {
                     sh '''
+                        export PATH="/tmp/google-cloud-sdk/bin:$PATH"
                         export GAR_REPO="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/yas-docker-repo"
                         echo "🔐 Xác thực với Google Cloud..."
                         gcloud auth activate-service-account --key-file="$GCP_SA_KEY"

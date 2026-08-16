@@ -169,10 +169,7 @@ pipeline {
 
         stage('Deploy Backend to VM (MIG)') {
             when {
-                allOf {
-                    expression { return params.DEPLOY_TO_GCP }
-                    expression { return env.CHANGED_SERVICES?.trim() }
-                }
+                expression { return params.DEPLOY_TO_GCP }
             }
             steps {
                 withCredentials([

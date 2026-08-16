@@ -87,8 +87,9 @@ resource "google_compute_firewall" "allow_health_check" {
 }
 
 # ==========================================
-# 5. Service Account
+# 5. Service Accounts & IAM
 # ==========================================
+# 5.1. SA cho Máy ảo VM Backend
 resource "google_service_account" "vm_sa" {
   account_id   = "yas-vm-sa"
   display_name = "Service Account for YAS Compute VM"
@@ -98,6 +99,24 @@ resource "google_project_iam_member" "artifact_reader" {
   project = var.project_id
   role    = "roles/artifactregistry.reader"
   member  = "serviceAccount:${google_service_account.vm_sa.email}"
+}
+
+# 5.2. SA cho Jenkins CI/CD Agent
+resource "google_service_account" "jenkins_sa" {
+  account_id   = "yas-jenkins-sa"
+  display_name = "Service Account for Jenkins CI/CD"
+}
+
+resource "google_project_iam_member" "jenkins_roles" {
+  for_each = toset([
+    "roles/iap.tunnelResourceAccessor",
+    "roles/compute.instanceAdmin.v1",
+    "roles/artifactregistry.writer",
+    "roles/iam.serviceAccountUser"
+  ])
+  project = var.project_id
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.jenkins_sa.email}"
 }
 
 # ==========================================

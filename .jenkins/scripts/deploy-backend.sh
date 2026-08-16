@@ -48,6 +48,7 @@ echo "$VM_LIST" | while IFS=',' read -r INSTANCE INSTANCE_ZONE; do
     --tunnel-through-iap \
     --quiet \
     --command="
+      sudo git config --system --add safe.directory /opt/yas &&
       cd /opt/yas &&
       echo 'Pulling latest code...' &&
       sudo git pull origin ci-media-only-test &&

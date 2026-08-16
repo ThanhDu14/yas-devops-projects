@@ -5,6 +5,7 @@ pipeline {
         string(name: 'TARGET_SERVICES', defaultValue: '', description: 'Manually specify services to test/build (space-separated, e.g. "media product"). Leave empty for auto-detect.')
         booleanParam(name: 'RUN_INTEGRATION_TESTS', defaultValue: false, description: 'Run full Integration Tests (mvn verify with Testcontainers)')
         booleanParam(name: 'RUN_SECURITY_SCAN', defaultValue: true, description: 'Run Gitleaks secret scan stage')
+        booleanParam(name: 'DEPLOY_TO_GCP', defaultValue: false, description: 'Deploy lên GCP sau khi build thành công (Push Image + Deploy Frontend/Backend)')
     }
 
     tools {
@@ -17,6 +18,9 @@ pipeline {
     }
 
     stages {
+        // ==========================================
+        // PHẦN 1: CI (Continuous Integration)
+        // ==========================================
         stage('Clean Old Artifacts') {
             steps {
                 sh '''
@@ -119,6 +123,89 @@ pipeline {
                 sh '.jenkins/scripts/build-changed-services.sh "${CHANGED_SERVICES}"'
             }
         }
+
+        // ==========================================
+        // PHẦN 2: CD (Continuous Deployment) → GCP
+        // Chỉ chạy khi bật DEPLOY_TO_GCP = true
+        // ==========================================
+        stage('Push Docker Images to GAR') {
+            when {
+                allOf {
+                    expression { return params.DEPLOY_TO_GCP }
+                    expression { return env.CHANGED_SERVICES?.trim() }
+                }
+            }
+            steps {
+                withCredentials([
+                    string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT_ID'),
+                    string(credentialsId: 'gar-repo', variable: 'GAR_REPO'),
+                    string(credentialsId: 'gcp-region', variable: 'GCP_REGION'),
+                    file(credentialsId: 'gcp-service-account-key', variable: 'GCP_SA_KEY')
+                ]) {
+                    sh '''
+                        echo "🔐 Xác thực với Google Cloud..."
+                        gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
+                        gcloud config set project "$GCP_PROJECT_ID"
+
+                        echo "🐳 Build & Push Docker Images..."
+                        .jenkins/scripts/push-images.sh "${CHANGED_SERVICES}"
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Frontend to Cloud Storage') {
+            when {
+                allOf {
+                    expression { return params.DEPLOY_TO_GCP }
+                    expression {
+                        return env.CHANGED_SERVICES?.contains('storefront') || env.CHANGED_SERVICES?.contains('backoffice')
+                    }
+                }
+            }
+            steps {
+                withCredentials([
+                    string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT_ID'),
+                    string(credentialsId: 'gcs-bucket-name', variable: 'GCS_BUCKET_NAME'),
+                    file(credentialsId: 'gcp-service-account-key', variable: 'GCP_SA_KEY')
+                ]) {
+                    sh '''
+                        echo "🔐 Xác thực với Google Cloud..."
+                        gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
+                        gcloud config set project "$GCP_PROJECT_ID"
+
+                        echo "🌐 Deploy Frontend lên Cloud Storage..."
+                        .jenkins/scripts/deploy-frontend.sh "${CHANGED_SERVICES}"
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Backend to VM (MIG)') {
+            when {
+                allOf {
+                    expression { return params.DEPLOY_TO_GCP }
+                    expression { return env.CHANGED_SERVICES?.trim() }
+                }
+            }
+            steps {
+                withCredentials([
+                    string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT_ID'),
+                    string(credentialsId: 'gcp-region', variable: 'GCP_REGION'),
+                    string(credentialsId: 'gar-repo', variable: 'GAR_REPO'),
+                    file(credentialsId: 'gcp-service-account-key', variable: 'GCP_SA_KEY')
+                ]) {
+                    sh '''
+                        echo "🔐 Xác thực với Google Cloud..."
+                        gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
+                        gcloud config set project "$GCP_PROJECT_ID"
+
+                        echo "🚀 Deploy Backend lên VM trong MIG..."
+                        .jenkins/scripts/deploy-backend.sh
+                    '''
+                }
+            }
+        }
     }
 
     post {
@@ -135,6 +222,23 @@ pipeline {
                 '''
                 archiveArtifacts allowEmptyArchive: true, artifacts: 'BAO_CAO_CI.md, gitleaks-report.json, trivy-report.json'
             }
+        }
+        success {
+            script {
+                if (params.DEPLOY_TO_GCP) {
+                    echo """
+                    ========================================
+                    🎉 CI/CD PIPELINE HOÀN TẤT!
+                    ========================================
+                    ✅ CI: Test, Scan, Build → PASSED
+                    ✅ CD: Deploy lên GCP → THÀNH CÔNG
+                    ========================================
+                    """
+                }
+            }
+        }
+        failure {
+            echo "❌ Pipeline thất bại! Kiểm tra logs để biết chi tiết."
         }
     }
 }

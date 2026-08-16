@@ -307,6 +307,17 @@ services:
     networks:
       - yas-network
 
+  pgadmin:
+    image: dpage/pgadmin4:2024-10-19-2
+    restart: unless-stopped
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@yas.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    networks:
+      - yas-network
+
 networks:
   yas-network:
     driver: bridge
@@ -315,3 +326,4 @@ networks:
 volumes:
   postgres:
   redis:
+  pgadmin:

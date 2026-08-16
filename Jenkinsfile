@@ -154,32 +154,6 @@ pipeline {
             }
         }
 
-        stage('Deploy Frontend to Cloud Storage') {
-            when {
-                allOf {
-                    expression { return params.DEPLOY_TO_GCP }
-                    expression {
-                        return env.CHANGED_SERVICES?.contains('storefront') || env.CHANGED_SERVICES?.contains('backoffice')
-                    }
-                }
-            }
-            steps {
-                withCredentials([
-                    string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT_ID'),
-                    string(credentialsId: 'gcs-bucket-name', variable: 'GCS_BUCKET_NAME'),
-                    file(credentialsId: 'gcp-service-account-key', variable: 'GCP_SA_KEY')
-                ]) {
-                    sh '''
-                        echo "🔐 Xác thực với Google Cloud..."
-                        gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
-                        gcloud config set project "$GCP_PROJECT_ID"
-
-                        echo "🌐 Deploy Frontend lên Cloud Storage..."
-                        .jenkins/scripts/deploy-frontend.sh "${CHANGED_SERVICES}"
-                    '''
-                }
-            }
-        }
 
         stage('Deploy Backend to VM (MIG)') {
             when {
@@ -192,15 +166,14 @@ pipeline {
                 withCredentials([
                     string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT_ID'),
                     string(credentialsId: 'gcp-region', variable: 'GCP_REGION'),
-                    string(credentialsId: 'gar-repo', variable: 'GAR_REPO'),
                     file(credentialsId: 'gcp-service-account-key', variable: 'GCP_SA_KEY')
                 ]) {
                     sh '''
-                        echo "🔐 Xác thực với Google Cloud..."
+                        echo "Xac thuc voi Google Cloud..."
                         gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
                         gcloud config set project "$GCP_PROJECT_ID"
 
-                        echo "🚀 Deploy Backend lên VM trong MIG..."
+                        echo "Deploy Backend len VM trong MIG..."
                         .jenkins/scripts/deploy-backend.sh
                     '''
                 }

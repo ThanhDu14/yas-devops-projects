@@ -1,10 +1,9 @@
 version: "3.9"
 
 # ==========================================
-# Docker Compose Production - Backend Only
-# Frontend (storefront-nextjs, backoffice-nextjs) chạy trên Cloud Storage + CDN
-# Tất cả secrets được đọc từ file .env.prod (KHÔNG commit lên Git)
-# Chạy: docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+# Docker Compose Production
+# Copy gần nguyên docker-compose.yml gốc, chỉ thay image sang GAR
+# Chạy: docker compose -f docker-compose.prod.yml up -d
 # ==========================================
 
 services:
@@ -23,12 +22,12 @@ services:
     image: quay.io/keycloak/keycloak:26.0.2
     command: 'start-dev --import-realm'
     environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USER}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: ${KC_DB_USER}
-      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KC_DB_USERNAME: admin
+      KC_DB_PASSWORD: admin
       KC_HTTP_PORT: 80
     volumes:
       - ./identity/realm-export.json:/opt/keycloak/data/import/realm-export.json
@@ -37,42 +36,57 @@ services:
       - yas-network
 
   backoffice:
-    image: ${GAR_REPO}/yas-backoffice-bff:latest
+    image: ghcr.io/nashtech-garage/yas-backoffice-bff:latest
+    entrypoint: ["./wait-for-it.sh", "identity:80", "--timeout=300", "--", "java", "-jar", "/app.jar"]
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - SERVER_PORT=8080
-      - LOGGING_CONFIG
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
     volumes:
       - ./deployment/app-config:/app-config
+    networks:
+      - yas-network
+
+  backoffice-nextjs:
+    image: ghcr.io/nashtech-garage/yas-backoffice:latest
     networks:
       - yas-network
 
   storefront:
-    image: ${GAR_REPO}/yas-storefront-bff:latest
+    image: ghcr.io/nashtech-garage/yas-storefront-bff:latest
+    entrypoint: ["./wait-for-it.sh", "identity:80", "--timeout=300", "--", "java", "-jar", "/app.jar"]
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - YAS_SERVICES_CUSTOMER=http://customer:8080
-      - YAS_SERVICES_CART=http://cart:8080
-      - YAS_SERVICES_RATING=http://rating:8080
-      - YAS_SERVICES_ORDER=http://order:8080
-      - YAS_SERVICES_LOCATION=http://location:8080
-      - YAS_SERVICES_INVENTORY=http://inventory:8080
-      - YAS_SERVICES_TAX=http://tax:8080
-      - YAS_SERVICES_PROMOTION=http://promotion:8080
-      - YAS_SERVICES_PAYMENT=http://payment:8080
-      - YAS_SERVICES_SAMPLE_DATA=http://sampledata:8080
-      - SERVER_PORT=8080
+      - YAS_SERVICES_CUSTOMER=http://customer/customer
+      - YAS_SERVICES_CART=http://cart/cart
+      - YAS_SERVICES_RATING=http://rating/rating
+      - YAS_SERVICES_ORDER=http://order/order
+      - YAS_SERVICES_LOCATION=http://location/location
+      - YAS_SERVICES_INVENTORY=http://inventory/inventory
+      - YAS_SERVICES_TAX=http://tax/tax
+      - YAS_SERVICES_PROMOTION=http://promotion/promotion
+      - YAS_SERVICES_PAYMENT=http://payment/payment
+      - YAS_SERVICES_SAMPLE_DATA=http://sampledata/sampledata
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
     volumes:
       - ./deployment/app-config:/app-config
     networks:
       - yas-network
 
+  storefront-nextjs:
+    image: ghcr.io/nashtech-garage/yas-storefront:latest
+    networks:
+      - yas-network
+
   media:
-    image: ${GAR_REPO}/yas-media:latest
+    image: ghcr.io/nashtech-garage/yas-media:latest
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/media
       - SERVER_SERVLET_CONTEXT_PATH=/media
-      - SERVER_PORT=8080
+      - YAS_PUBLIC_URL=http://api.yas.local/media
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
     volumes:
       - ./deployment/app-config:/app-config
       - ./sampledata/images:/images
@@ -80,139 +94,163 @@ services:
       - yas-network
 
   product:
-    image: ${GAR_REPO}/yas-product:latest
+    image: ghcr.io/nashtech-garage/yas-product:latest
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/product
       - SERVER_SERVLET_CONTEXT_PATH=/product
-      - YAS_SERVICES_MEDIA=http://media:8080
-      - SERVER_PORT=8080
+      - YAS_SERVICES_MEDIA=http://media/media
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
     volumes:
       - ./deployment/app-config:/app-config
     networks:
       - yas-network
 
   customer:
-    image: ${GAR_REPO}/yas-customer:latest
+    image: ghcr.io/nashtech-garage/yas-customer:latest
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/customer
       - SERVER_SERVLET_CONTEXT_PATH=/customer
-      - YAS_SERVICES_LOCATION=http://location:8080
-      - SERVER_PORT=8080
+      - YAS_SERVICES_LOCATION=http://location/location
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
     volumes:
       - ./deployment/app-config:/app-config
     networks:
       - yas-network
 
   cart:
-    image: ${GAR_REPO}/yas-cart:latest
+    image: ghcr.io/nashtech-garage/yas-cart:latest
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/cart
       - SERVER_SERVLET_CONTEXT_PATH=/cart
-      - YAS_SERVICES_MEDIA=http://media:8080
-      - YAS_SERVICES_PRODUCT=http://product:8080
-      - SERVER_PORT=8080
+      - YAS_SERVICES_MEDIA=http://media/media
+      - YAS_SERVICES_PRODUCT=http://product/product
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
     volumes:
       - ./deployment/app-config:/app-config
     networks:
       - yas-network
 
   rating:
-    image: ${GAR_REPO}/yas-rating:latest
+    image: ghcr.io/nashtech-garage/yas-rating:latest
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/rating
       - SERVER_SERVLET_CONTEXT_PATH=/rating
-      - YAS_SERVICES_PRODUCT=http://product:8080
-      - YAS_SERVICES_CUSTOMER=http://customer:8080
-      - YAS_SERVICES_ORDER=http://order:8080
-      - SERVER_PORT=8080
+      - YAS_PUBLIC_URL=http://api.yas.local/rating
+      - YAS_SERVICES_PRODUCT=http://product/product
+      - YAS_SERVICES_CUSTOMER=http://customer/customer
+      - YAS_SERVICES_ORDER=http://order/order
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
     volumes:
       - ./deployment/app-config:/app-config
     networks:
       - yas-network
 
   order:
-    image: ${GAR_REPO}/yas-order:latest
+    image: ghcr.io/nashtech-garage/yas-order:latest
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/order
       - SERVER_SERVLET_CONTEXT_PATH=/order
-      - YAS_SERVICES_CART=http://cart:8080
-      - YAS_SERVICES_CUSTOMER=http://customer:8080
-      - YAS_SERVICES_PRODUCT=http://product:8080
-      - YAS_SERVICES_TAX=http://tax:8080
-      - SERVER_PORT=8080
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
+      - YAS_PUBLIC_URL=http://api.yas.local/order
+      - YAS_SERVICES_CART=http://cart/cart
+      - YAS_SERVICES_CUSTOMER=http://customer/customer
+      - YAS_SERVICES_PRODUCT=http://product/product
+      - YAS_SERVICES_TAX=http://tax/tax
+      - YAS_CURRENCY_UNIT=VND
+      - YAS_PRICE_INCLUDES_TAX=false
     volumes:
       - ./deployment/app-config:/app-config
     networks:
       - yas-network
 
   payment:
-    image: ${GAR_REPO}/yas-payment:latest
+    image: ghcr.io/nashtech-garage/yas-payment:latest
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/payment
       - SERVER_SERVLET_CONTEXT_PATH=/payment
-      - YAS_SERVICES_ORDER=http://order:8080
-      - YAS_SERVICES_MEDIA=http://media:8080
-      - SERVER_PORT=8080
+      - YAS_PUBLIC_URL=http://api.yas.local/payment
+      - YAS_SERVICES_ORDER=http://order/order
+      - YAS_SERVICES_MEDIA=http://media/media
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
+      - YAS_CURRENCY_UNIT=VND
+      - YAS_PRICE_INCLUDES_TAX=false
     volumes:
       - ./deployment/app-config:/app-config
     networks:
       - yas-network
 
   location:
-    image: ${GAR_REPO}/yas-location:latest
+    image: ghcr.io/nashtech-garage/yas-location:latest
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/location
       - SERVER_SERVLET_CONTEXT_PATH=/location
-      - SERVER_PORT=8080
+      - YAS_PUBLIC_URL=http://api.yas.local/location
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
     volumes:
       - ./deployment/app-config:/app-config
     networks:
       - yas-network
 
   inventory:
-    image: ${GAR_REPO}/yas-inventory:latest
+    image: ghcr.io/nashtech-garage/yas-inventory:latest
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/inventory
       - SERVER_SERVLET_CONTEXT_PATH=/inventory
-      - YAS_SERVICES_PRODUCT=http://product:8080
-      - YAS_SERVICES_LOCATION=http://location:8080
-      - SERVER_PORT=8080
+      - YAS_PUBLIC_URL=http://api.yas.local/inventory
+      - YAS_SERVICES_PRODUCT=http://product/product
+      - YAS_SERVICES_LOCATION=http://location/location
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
     volumes:
       - ./deployment/app-config:/app-config
     networks:
       - yas-network
 
   promotion:
-    image: ${GAR_REPO}/yas-promotion:latest
+    image: ghcr.io/nashtech-garage/yas-promotion:latest
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/promotion
       - SERVER_SERVLET_CONTEXT_PATH=/promotion
-      - YAS_SERVICES_PRODUCT=http://product:8080
-      - SERVER_PORT=8080
+      - YAS_PUBLIC_URL=http://api.yas.local/promotion
+      - YAS_SERVICES_PRODUCT=http://product/product
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
     volumes:
       - ./deployment/app-config:/app-config
     networks:
       - yas-network
 
   tax:
-    image: ${GAR_REPO}/yas-tax:latest
+    image: ghcr.io/nashtech-garage/yas-tax:latest
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/tax
       - SERVER_SERVLET_CONTEXT_PATH=/tax
-      - YAS_SERVICES_LOCATION=http://location:8080
-      - SERVER_PORT=8080
+      - YAS_PUBLIC_URL=http://api.yas.local/tax
+      - YAS_SERVICES_LOCATION=http://location/location
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
     volumes:
       - ./deployment/app-config:/app-config
     networks:
       - yas-network
 
   sampledata:
-    image: ${GAR_REPO}/yas-sampledata:latest
+    image: ghcr.io/nashtech-garage/yas-sampledata:latest
     environment:
       - SPRING_DATASOURCE_PRODUCT_URL=jdbc:postgresql://postgres:5432/product
       - SPRING_DATASOURCE_MEDIA_URL=jdbc:postgresql://postgres:5432/media
       - SERVER_SERVLET_CONTEXT_PATH=/sampledata
-      - SERVER_PORT=8080
+      - YAS_PUBLIC_URL=http://api.yas.local/sampledata
+      - YAS_SERVICES_SAMPLE_DATA=http://sampledata/sampledata
+      - SERVER_PORT=80
+      - LOGGING_CONFIG=/app-config/logback-spring.xml
     volumes:
       - ./deployment/app-config:/app-config
     networks:
@@ -222,6 +260,9 @@ services:
     image: swaggerapi/swagger-ui:v5.17.14
     environment:
       - BASE_URL=/swagger-ui
+      - "URLS=[{ url: 'http://api.yas.local/product/v3/api-docs', name: 'Product' },{ url: 'http://api.yas.local/media/v3/api-docs', name: 'Media' },{ url: 'http://api.yas.local/customer/v3/api-docs', name: 'Customer' },{ url: 'http://api.yas.local/cart/v3/api-docs', name: 'Cart'},{ url: 'http://api.yas.local/rating/v3/api-docs', name: 'Rating' }, { url: 'http://api.yas.local/order/v3/api-docs', name: 'Order'},{ url: 'http://api.yas.local/payment/v3/api-docs', name: 'Payment'},{ url: 'http://api.yas.local/location/v3/api-docs', name: 'Location'}, { url: 'http://api.yas.local/inventory/v3/api-docs', name: 'Inventory'},{ url: 'http://api.yas.local/tax/v3/api-docs', name: 'Tax' },{ url: 'http://api.yas.local/promotion/v3/api-docs', name: 'Promotion'}]"
+      - OAUTH_CLIENT_ID=swagger-ui
+      - OAUTH_USE_PKCE=true
     networks:
       - yas-network
 
@@ -233,9 +274,10 @@ services:
     volumes:
       - ./postgres_init.sql:/docker-entrypoint-initdb.d/postgres_init.sql
       - postgres:/var/lib/postgresql/data
+    command: postgres -c 'max_connections=500'
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
     networks:
       - yas-network
 

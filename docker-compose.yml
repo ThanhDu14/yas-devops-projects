@@ -30,6 +30,7 @@ services:
   backoffice:
     build: ./backoffice-bff
     image: ${IMAGE_REGISTRY:-ghcr.io/nashtech-garage}/yas-backoffice-bff:latest
+    restart: unless-stopped
     entrypoint: [ "./wait-for-it.sh", "identity:80", "--timeout=300", "--", "java", "-jar", "/app.jar" ]
     environment:
       - SPRING_PROFILES_ACTIVE=prod
@@ -55,11 +56,13 @@ services:
       - yas-network
   backoffice-nextjs:
     image: ghcr.io/nashtech-garage/yas-backoffice:latest
+    restart: unless-stopped
     networks:
       - yas-network
   storefront:
     build: ./storefront-bff
     image: ${IMAGE_REGISTRY:-ghcr.io/nashtech-garage}/yas-storefront-bff:latest
+    restart: unless-stopped
     entrypoint: [ "./wait-for-it.sh", "identity:80", "--timeout=300", "--", "java", "-jar", "/app.jar" ]
     environment:
       - SPRING_PROFILES_ACTIVE=prod

@@ -54,12 +54,20 @@ for SERVICE in $CHANGED_SERVICES; do
   echo "========================================"
 
   # Build Docker Image
-  docker build -t "${FULL_IMAGE}:${BUILD_TAG}" -t "${FULL_IMAGE}:latest" "$DOCKER_CONTEXT"
+  TAG_ARGS=(-t "${FULL_IMAGE}:${BUILD_TAG}" -t "${FULL_IMAGE}:latest")
+  if [ -n "${GIT_COMMIT_SHORT:-}" ]; then
+    TAG_ARGS+=(-t "${FULL_IMAGE}:${GIT_COMMIT_SHORT}")
+  fi
+
+  docker build "${TAG_ARGS[@]}" "$DOCKER_CONTEXT"
 
   # Push lên GAR
   echo "🚀 Pushing: ${FULL_IMAGE}:${BUILD_TAG}"
   docker push "${FULL_IMAGE}:${BUILD_TAG}"
   docker push "${FULL_IMAGE}:latest"
+  if [ -n "${GIT_COMMIT_SHORT:-}" ]; then
+    docker push "${FULL_IMAGE}:${GIT_COMMIT_SHORT}"
+  fi
 
   echo "✅ Hoàn thành: ${IMAGE_NAME}"
 done

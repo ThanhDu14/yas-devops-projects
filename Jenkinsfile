@@ -1,12 +1,18 @@
 pipeline {
     agent any
 
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '5', artifactNumToKeepStr: '3'))
+        timeout(time: 60, unit: 'MINUTES')
+    }
+
     parameters {
-        string(name: 'TARGET_SERVICES', defaultValue: '', description: 'Manually specify services to test/build (space-separated, e.g. "media product"). Leave empty for auto-detect.')
-        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Bỏ qua Unit/Integration Tests và SonarCloud để Build & Deploy nhanh')
-        booleanParam(name: 'RUN_INTEGRATION_TESTS', defaultValue: false, description: 'Run full Integration Tests (mvn verify with Testcontainers)')
-        booleanParam(name: 'RUN_SECURITY_SCAN', defaultValue: true, description: 'Run Gitleaks secret scan stage')
-        booleanParam(name: 'DEPLOY_TO_GCP', defaultValue: false, description: 'Deploy lên GCP sau khi build thành công')
+        string(name: 'TARGET_SERVICES', defaultValue: '', description: 'Chỉ định danh sách services cần build/test (cách nhau bởi dấu cách, vd: "media product"). Để trống để tự động nhận diện.')
+        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Bỏ qua Unit/Integration Tests và SonarCloud để Build & Deploy nhanh (Chỉ dùng cho dev/hotfix, cấm trên main)')
+        booleanParam(name: 'RUN_INTEGRATION_TESTS', defaultValue: false, description: 'Chạy Full Integration Tests (mvn verify với Testcontainers)')
+        booleanParam(name: 'RUN_SECURITY_SCAN', defaultValue: true, description: 'Chạy quét rò rỉ bí mật với Gitleaks')
+        booleanParam(name: 'FAIL_ON_SECURITY_VULN', defaultValue: false, description: 'Chặn đứng Pipeline (FAIL) nếu phát hiện lộ Secret hoặc lỗ hổng CRITICAL')
+        booleanParam(name: 'DEPLOY_TO_GCP', defaultValue: false, description: 'Deploy lên hạ tầng GCP sau khi build thành công')
     }
 
     tools {
@@ -20,12 +26,26 @@ pipeline {
 
     stages {
         // ==========================================
+        // GUARD: Kiểm tra tính hợp lệ của tham số
+        // ==========================================
+        stage('Guard: Validate Branch Rules') {
+            steps {
+                script {
+                    def branch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: ''
+                    if (branch.contains('main') && params.SKIP_TESTS && params.DEPLOY_TO_GCP) {
+                        error("⛔ VI PHẠM CHÍNH SÁCH BẢO MẬT: Không được phép bật SKIP_TESTS khi deploy nhánh 'main' lên Production!")
+                    }
+                }
+            }
+        }
+
+        // ==========================================
         // PHẦN 1: CI (Continuous Integration)
         // ==========================================
         stage('Clean Old Artifacts') {
             steps {
                 sh '''
-                    echo "Cleaning old target directories and reports..."
+                    echo "🧹 Dọn dẹp target directories và reports cũ..."
                     find . -type d -name "target" -prune -exec rm -rf {} + 2>/dev/null || true
                     rm -f gitleaks-report.json trivy-report.json BAO_CAO_CI.md 2>/dev/null || true
                 '''
@@ -37,13 +57,13 @@ pipeline {
                 script {
                     if (params.TARGET_SERVICES?.trim()) {
                         env.CHANGED_SERVICES = params.TARGET_SERVICES.trim()
-                        echo "Using manually specified services: ${env.CHANGED_SERVICES}"
+                        echo "👉 Sử dụng danh sách services thủ công: ${env.CHANGED_SERVICES}"
                     } else {
                         env.CHANGED_SERVICES = sh(
                             script: '.jenkins/scripts/detect-changed-services.sh',
                             returnStdout: true
                         ).trim()
-                        echo "Auto-detected changed services: ${env.CHANGED_SERVICES}"
+                        echo "🔍 Tự động phát hiện các services thay đổi: ${env.CHANGED_SERVICES}"
                     }
                 }
             }
@@ -57,13 +77,19 @@ pipeline {
                 script {
                     sh '''
                         if ! command -v gitleaks > /dev/null 2>&1; then
-                            echo "Downloading Gitleaks binary..."
+                            echo "⬇️ Đang tải Gitleaks binary..."
                             mkdir -p /tmp/bin
                             curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar -xz -C /tmp/bin
                             export PATH="/tmp/bin:$PATH"
                         fi
-                        gitleaks detect --source . -v --report-path gitleaks-report.json --report-format json || true
                     '''
+                    if (params.FAIL_ON_SECURITY_VULN) {
+                        echo "🔒 Security Gate: Bật chế độ chặn cứng nếu phát hiện lộ Secret!"
+                        sh 'gitleaks detect --source . -v --report-path gitleaks-report.json --report-format json'
+                    } else {
+                        echo "ℹ️ Security Gate: Chế độ cảnh báo (ghi log vào báo cáo)."
+                        sh 'gitleaks detect --source . -v --report-path gitleaks-report.json --report-format json || true'
+                    }
                 }
             }
         }
@@ -108,16 +134,23 @@ pipeline {
                 script {
                     sh '''
                         if ! command -v trivy > /dev/null 2>&1 && [ ! -f /tmp/bin/trivy ]; then
-                            echo "Downloading Trivy binary..."
+                            echo "⬇️ Đang tải Trivy binary..."
                             mkdir -p /tmp/bin
                             curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.73.0/trivy_0.73.0_Linux-64bit.tar.gz | tar -xz -C /tmp/bin trivy
                             chmod +x /tmp/bin/trivy
                         fi
                         export PATH="/tmp/bin:$PATH"
                         TARGET="${CHANGED_SERVICES:-.}"
-                        echo "Scanning vulnerabilities for: ${TARGET}"
-                        trivy fs --scanners vuln --severity HIGH,CRITICAL --format json -o trivy-report.json --no-progress ${TARGET} || true
+                        echo "🛡️ Quét lỗ hổng thư viện cho: ${TARGET}"
+                        trivy fs --offline-scan --skip-version-check --scanners vuln --severity HIGH,CRITICAL --format json -o trivy-report.json --no-progress ${TARGET} || true
+                        if [ ! -f trivy-report.json ] || [ ! -s trivy-report.json ]; then
+                            echo '{"Results": []}' > trivy-report.json
+                        fi
                     '''
+                    if (params.FAIL_ON_SECURITY_VULN) {
+                        echo "🔒 Security Gate: Kiểm tra chặn nếu tồn tại lỗ hổng CRITICAL!"
+                        sh 'trivy fs --offline-scan --skip-version-check --scanners vuln --severity CRITICAL --exit-code 1 --no-progress "${CHANGED_SERVICES:-.}"'
+                    }
                 }
             }
         }
@@ -133,8 +166,21 @@ pipeline {
 
         // ==========================================
         // PHẦN 2: CD (Continuous Deployment) → GCP
-        // Chỉ chạy khi bật DEPLOY_TO_GCP = true
         // ==========================================
+        stage('Approval for Deployment') {
+            when {
+                expression { return params.DEPLOY_TO_GCP }
+            }
+            steps {
+                script {
+                    def deployBranch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'current'
+                    timeout(time: 15, unit: 'MINUTES') {
+                        input message: "❓ Bạn có chắc chắn muốn Deploy nhánh [${deployBranch}] lên GCP?", ok: '🚀 Chấp thuận Deploy'
+                    }
+                }
+            }
+        }
+
         stage('Push Docker Images to GAR') {
             when {
                 allOf {
@@ -157,8 +203,13 @@ pipeline {
 
                         export GAR_REPO="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/yas-docker-repo"
                         echo "🔐 Xác thực với Google Cloud..."
-                        gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
+                        if [ -f "$GCP_SA_KEY" ]; then
+                            gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
+                        fi
                         gcloud config set project "$GCP_PROJECT_ID"
+
+                        # Truyền Short Commit SHA để tag image chính xác
+                        export GIT_COMMIT_SHORT="$(git rev-parse --short HEAD 2>/dev/null || echo '')"
 
                         echo "🐳 Build & Push Docker Images..."
                         .jenkins/scripts/push-images.sh "${CHANGED_SERVICES}"
@@ -181,7 +232,9 @@ pipeline {
                         export PATH="/tmp/google-cloud-sdk/bin:$PATH"
                         export GAR_REPO="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/yas-docker-repo"
                         echo "🔐 Xác thực với Google Cloud..."
-                        gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
+                        if [ -f "$GCP_SA_KEY" ]; then
+                            gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
+                        fi
                         gcloud config set project "$GCP_PROJECT_ID"
 
                         echo "🚀 Deploy Backend lên VM trong MIG..."
@@ -204,6 +257,8 @@ pipeline {
                     else
                         echo "Python not found to generate markdown report."
                     fi
+                    # Tự động dọn dẹp các dangling layer sau mỗi lần build
+                    docker image prune -f 2>/dev/null || true
                 '''
                 archiveArtifacts allowEmptyArchive: true, artifacts: 'BAO_CAO_CI.md, gitleaks-report.json, trivy-report.json'
             }

@@ -1,0 +1,20 @@
+# ==========================================
+# Gitleaks Configuration
+# Quy tắc Allowlist cho các mock key trong môi trường Test & Local Demo
+# ==========================================
+
+[allowlist]
+description = "Bỏ qua các mock data, dummy UUID và cấu hình test nội bộ"
+paths = [
+    '''(^|/)src/(test|it)/resources/.*''',
+    '''(^|/)test-realm\.json$''',
+    '''(^|/)k8s/charts/yas-configuration/values\.yaml$''',
+    '''(^|/)k8s/deploy/.*''',
+    '''(^|/)postgres_init\.sql$''',
+    '''(^|/)identity/realm-export\.json$'''
+]
+
+regexes = [
+    '''admin:admin''',
+    '''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'''
+]

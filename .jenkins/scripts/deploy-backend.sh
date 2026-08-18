@@ -68,7 +68,7 @@ echo "$VM_LIST" | while IFS=',' read -r INSTANCE INSTANCE_ZONE; do
       echo '🔄 Fetching code and checkout branch: $DEPLOY_BRANCH...' &&
       sudo git fetch origin &&
       (sudo git checkout $DEPLOY_BRANCH 2>/dev/null || sudo git checkout -b $DEPLOY_BRANCH origin/$DEPLOY_BRANCH 2>/dev/null || true) &&
-      sudo git pull origin $DEPLOY_BRANCH || sudo git pull origin main || true &&
+      sudo git reset --hard origin/$DEPLOY_BRANCH &&
       echo '🔐 Authenticating Docker with GAR on VM...' &&
       gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet 2>/dev/null || true &&
       echo '🐳 Pulling Docker Images from GAR ($GAR_REPO)...' &&

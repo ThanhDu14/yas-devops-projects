@@ -54,9 +54,9 @@ services:
     networks:
       - yas-network
   backoffice-nextjs:
-    image: ${IMAGE_REGISTRY:-ghcr.io/nashtech-garage}/yas-backoffice:latest
+    image: ghcr.io/nashtech-garage/yas-backoffice:latest
     networks:
-    - yas-network
+      - yas-network
   storefront:
     build: ./storefront-bff
     image: ${IMAGE_REGISTRY:-ghcr.io/nashtech-garage}/yas-storefront-bff:latest
@@ -94,7 +94,7 @@ services:
     networks:
       - yas-network
   storefront-nextjs:
-    image: ${IMAGE_REGISTRY:-ghcr.io/nashtech-garage}/yas-storefront:latest
+    image: ghcr.io/nashtech-garage/yas-storefront:latest
     networks:
       - yas-network
   media:

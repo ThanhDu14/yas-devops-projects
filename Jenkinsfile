@@ -263,8 +263,9 @@ pipeline {
                     else
                         echo "Python not found to generate markdown report."
                     fi
-                    # Tự động dọn dẹp các dangling layer sau mỗi lần build
-                    docker image prune -f 2>/dev/null || true
+                    # Dọn dẹp triệt để Build Cache và dangling images sau khi build
+                    docker builder prune -f 2>/dev/null || true
+                    docker system prune -f 2>/dev/null || true
                 '''
                 archiveArtifacts allowEmptyArchive: true, artifacts: 'BAO_CAO_CI.md, gitleaks-report.json, trivy-report.json'
             }

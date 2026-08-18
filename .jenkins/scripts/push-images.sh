@@ -69,6 +69,14 @@ for SERVICE in $CHANGED_SERVICES; do
     docker push "${FULL_IMAGE}:${GIT_COMMIT_SHORT}"
   fi
 
+  # Dọn dẹp ngay image vừa build và cache để giải phóng dung lượng đĩa cho service tiếp theo
+  echo "🧹 Giải phóng dung lượng đĩa sau khi push ${IMAGE_NAME}..."
+  docker rmi "${FULL_IMAGE}:${BUILD_TAG}" "${FULL_IMAGE}:latest" 2>/dev/null || true
+  if [ -n "${GIT_COMMIT_SHORT:-}" ]; then
+    docker rmi "${FULL_IMAGE}:${GIT_COMMIT_SHORT}" 2>/dev/null || true
+  fi
+  docker builder prune -f 2>/dev/null || true
+
   echo "✅ Hoàn thành: ${IMAGE_NAME}"
 done
 

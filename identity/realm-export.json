@@ -647,8 +647,10 @@
       "secret": "TVacLC0cQ8tiiEKiTVerTb2YvwQ1TRJF",
       "redirectUris": [
         "http://backoffice/*",
+        "http://136.69.118.156/*",
         "http://localhost:3000/*",
-        "http://localhost:8087/*"
+        "http://localhost:8087/*",
+        "*"
       ],
       "webOrigins": [],
       "notBefore": 0,
@@ -989,7 +991,9 @@
       "secret": "ZrU9I0q2uXBglBnmvyJdkl1lf0ncr8tn",
       "redirectUris": [
         "http://storefront/*",
-        "http://localhost:8087/*"
+        "http://136.69.118.156/*",
+        "http://localhost:8087/*",
+        "*"
       ],
       "webOrigins": [],
       "notBefore": 0,

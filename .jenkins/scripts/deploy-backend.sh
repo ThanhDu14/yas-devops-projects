@@ -54,7 +54,7 @@ echo "$VM_LIST" | while IFS=',' read -r INSTANCE INSTANCE_ZONE; do
   echo "========================================"
 
   # SSH vào VM qua IAP với cờ --quiet và bỏ qua StrictHostKeyChecking cho môi trường CI/CD
-  rm -f /var/jenkins_home/.ssh/google_compute_known_hosts 2>/dev/null || true
+  rm -f /var/jenkins_home/.ssh/google_compute_known_hosts ~/.ssh/google_compute_known_hosts 2>/dev/null || true
   gcloud compute ssh "$INSTANCE" \
     --zone="$INSTANCE_ZONE" \
     --project="$PROJECT_ID" \
@@ -62,6 +62,7 @@ echo "$VM_LIST" | while IFS=',' read -r INSTANCE INSTANCE_ZONE; do
     --quiet \
     --ssh-flag="-o StrictHostKeyChecking=no" \
     --ssh-flag="-o UserKnownHostsFile=/dev/null" \
+    --ssh-flag="-o GlobalKnownHostsFile=/dev/null" \
     --command="
       sudo git config --system --add safe.directory /opt/yas &&
       cd /opt/yas &&
@@ -74,7 +75,7 @@ echo "$VM_LIST" | while IFS=',' read -r INSTANCE INSTANCE_ZONE; do
       echo '🐳 Pulling Docker Images from GAR ($GAR_REPO)...' &&
       sudo IMAGE_REGISTRY=${GAR_REPO} COMPOSE_FILE=docker-compose.yml docker compose pull &&
       echo '🚀 Restarting containers...' &&
-      sudo IMAGE_REGISTRY=${GAR_REPO} COMPOSE_FILE=docker-compose.yml docker compose up -d --remove-orphans &&
+      sudo IMAGE_REGISTRY=${GAR_REPO} COMPOSE_FILE=docker-compose.yml docker compose up -d --remove-orphans --force-recreate &&
       echo '🧹 Cleaning up old images...' &&
       sudo docker image prune -f &&
       echo \"🎉 Deploy thanh cong tren \$(hostname)!\"

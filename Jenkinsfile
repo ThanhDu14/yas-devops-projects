@@ -185,6 +185,7 @@ pipeline {
                         gcloud config set project "$GCP_PROJECT_ID"
 
                         echo "🚀 Deploy Backend lên VM trong MIG..."
+                        export BRANCH_NAME="${BRANCH_NAME:-${GIT_BRANCH:-main}}"
                         .jenkins/scripts/deploy-backend.sh
                     '''
                 }

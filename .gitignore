@@ -33,6 +33,8 @@ hs_err_pid*
 # Secrets & Environment (KHÔNG ĐƯỢC COMMIT!)
 .env.prod
 .env.*.local
-terraform/.terraform/
-terraform/*.tfstate*
-terraform/terraform.tfvars
+.terraform/
+*.tfstate*
+*.tfvars
+
+terraform/

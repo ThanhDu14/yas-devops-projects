@@ -22,6 +22,7 @@ pipeline {
 
     environment {
         TESTCONTAINERS_RYUK_DISABLED = 'true'
+        PATH = "/tmp/bin:${env.PATH}"
     }
 
     stages {
@@ -75,21 +76,24 @@ pipeline {
             }
             steps {
                 script {
-                    sh '''
-                        if ! command -v gitleaks > /dev/null 2>&1; then
+                    def failOnVuln = params.FAIL_ON_SECURITY_VULN ? 'true' : 'false'
+                    sh """
+                        if ! command -v gitleaks > /dev/null 2>&1 && [ ! -f /tmp/bin/gitleaks ]; then
                             echo "⬇️ Đang tải Gitleaks binary..."
                             mkdir -p /tmp/bin
                             curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar -xz -C /tmp/bin
-                            export PATH="/tmp/bin:$PATH"
+                            chmod +x /tmp/bin/gitleaks
                         fi
-                    '''
-                    if (params.FAIL_ON_SECURITY_VULN) {
-                        echo "🔒 Security Gate: Bật chế độ chặn cứng nếu phát hiện lộ Secret!"
-                        sh 'gitleaks detect --source . -v --report-path gitleaks-report.json --report-format json'
-                    } else {
-                        echo "ℹ️ Security Gate: Chế độ cảnh báo (ghi log vào báo cáo)."
-                        sh 'gitleaks detect --source . -v --report-path gitleaks-report.json --report-format json || true'
-                    }
+                        export PATH="/tmp/bin:\$PATH"
+
+                        if [ "${failOnVuln}" = "true" ]; then
+                            echo "🔒 Security Gate: Bật chế độ chặn cứng nếu phát hiện lộ Secret!"
+                            gitleaks detect --source . -v --report-path gitleaks-report.json --report-format json
+                        else
+                            echo "ℹ️ Security Gate: Chế độ cảnh báo (ghi log vào báo cáo)."
+                            gitleaks detect --source . -v --report-path gitleaks-report.json --report-format json || true
+                        fi
+                    """
                 }
             }
         }
@@ -132,25 +136,27 @@ pipeline {
         stage('Vulnerability Scan (Trivy)') {
             steps {
                 script {
-                    sh '''
+                    def failOnVuln = params.FAIL_ON_SECURITY_VULN ? 'true' : 'false'
+                    sh """
                         if ! command -v trivy > /dev/null 2>&1 && [ ! -f /tmp/bin/trivy ]; then
                             echo "⬇️ Đang tải Trivy binary..."
                             mkdir -p /tmp/bin
                             curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.73.0/trivy_0.73.0_Linux-64bit.tar.gz | tar -xz -C /tmp/bin trivy
                             chmod +x /tmp/bin/trivy
                         fi
-                        export PATH="/tmp/bin:$PATH"
-                        TARGET="${CHANGED_SERVICES:-.}"
-                        echo "🛡️ Quét lỗ hổng thư viện cho: ${TARGET}"
-                        trivy fs --offline-scan --skip-version-check --scanners vuln --severity HIGH,CRITICAL --format json -o trivy-report.json --no-progress ${TARGET} || true
+                        export PATH="/tmp/bin:\$PATH"
+
+                        echo "🛡️ Quét lỗ hổng thư viện (Trivy)..."
+                        trivy fs --offline-scan --skip-version-check --scanners vuln --severity HIGH,CRITICAL --format json -o trivy-report.json --no-progress . || true
                         if [ ! -f trivy-report.json ] || [ ! -s trivy-report.json ]; then
                             echo '{"Results": []}' > trivy-report.json
                         fi
-                    '''
-                    if (params.FAIL_ON_SECURITY_VULN) {
-                        echo "🔒 Security Gate: Kiểm tra chặn nếu tồn tại lỗ hổng CRITICAL!"
-                        sh 'trivy fs --offline-scan --skip-version-check --scanners vuln --severity CRITICAL --exit-code 1 --no-progress "${CHANGED_SERVICES:-.}"'
-                    }
+
+                        if [ "${failOnVuln}" = "true" ]; then
+                            echo "🔒 Security Gate: Kiểm tra chặn nếu tồn tại lỗ hổng CRITICAL!"
+                            trivy fs --offline-scan --skip-version-check --scanners vuln --severity CRITICAL --exit-code 1 --no-progress .
+                        fi
+                    """
                 }
             }
         }
